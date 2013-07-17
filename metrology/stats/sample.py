@@ -71,7 +71,7 @@ class ExponentiallyDecayingSample(object):
             return Snapshot(val for _, val in self.values)
 
     def weight(self, timestamp):
-        return math.exp(self.alpha * timestamp)
+        return math.exp(self.alpha * (timestamp - self.start_time))
 
     def rescale(self, now, next_time):
         if self.next_scale_time.compare_and_swap(next_time, now + self.RESCALE_THRESHOLD):
@@ -93,7 +93,7 @@ class ExponentiallyDecayingSample(object):
         self.rescale_if_necessary()
         with self.lock:
             try:
-                priority = self.weight(timestamp - self.start_time)
+                priority = self.weight(timestamp)
             except OverflowError:
                 priority = sys.float_info.max
 

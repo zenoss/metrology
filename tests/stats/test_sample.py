@@ -74,7 +74,7 @@ class ExponentiallyDecayingSampleTest(TestCase):
         kSampleSize= 10
         kDefaultValue = 1.0
         sample = ExponentiallyDecayingSample(kSampleSize, 0.01)
-        sample.start_time = 0
+
         timeStamps = range(1, kSampleSize*2)
         for count, timeStamp in enumerate(timeStamps):
             sample.update(kDefaultValue, timeStamp)
@@ -88,7 +88,6 @@ class ExponentiallyDecayingSampleTest(TestCase):
     def test_sample_ordering(self):
         kSampleSize= 3
         sample = ExponentiallyDecayingSample(kSampleSize, 0.01)
-        sample.start_time = 0
 
         timestamps =  range(1, kSampleSize+1)
         values = ["VAL_"+str(i) for i in timestamps]

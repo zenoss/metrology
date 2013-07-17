@@ -76,15 +76,21 @@ class ExponentiallyDecayingSample(object):
     def rescale(self, now, next_time):
         if self.next_scale_time.compare_and_swap(next_time, now + self.RESCALE_THRESHOLD):
             with self.lock:
-                old_start_time = self.start_time
-                self.start_time = time()
-                for key in list(self.values.keys()):
-                    value = self.values.remove(key)
-                self.values[key * math.exp(-self.alpha * (self.start_time - old_start_time))] = value
+                rescaleFactor = math.exp(-self.alpha * (now - self.start_time))
+                self.values = [(k * rescaleFactor, v) for k, v in self.values]
+                self.start_time = now
+
+    def rescale_if_necessary(self):
+        now = time()
+        next_time = self.next_scale_time.get_value()
+        if now > next_time:
+            self._rescale(now, next_time)
 
     def update(self, value, timestamp=None):
-        if not timestamp:
+        if timestamp is None:
             timestamp = time()
+
+        self.rescale_if_necessary()
         with self.lock:
             try:
                 priority = self.weight(timestamp - self.start_time)

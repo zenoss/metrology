@@ -1,8 +1,7 @@
 from unittest import TestCase
 from mock import patch
-from decorator import decorator
+import math
 from metrology.stats.sample import UniformSample, ExponentiallyDecayingSample
-import random
 
 
 class UniformSampleTest(TestCase):
@@ -118,5 +117,11 @@ class ExponentiallyDecayingSampleTest(TestCase):
         sample.update(marker, replacement_timestamp)
         self.assertEqual(sorted(k for k,_  in sample.values), expected)
 
-
+    def test_rescale_threshold(self):
+        infinity = float('inf')
+        for alpha in (0.015, 1e-10, 1):
+            rescale_threshold = ExponentiallyDecayingSample.calculate_rescale_threshold(alpha)
+            min_rand_val = 1.0 / (2**32)
+            max_priority = math.exp(alpha * rescale_threshold ) / min_rand_val
+            self.assertLess(max_priority, infinity)
 

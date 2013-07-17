@@ -1,13 +1,12 @@
 import math
 import random
 import sys
+import heapq
 
 from time import time
 
 from atomic import Atomic
-from bintrees.rbtree import RBTree
 from threading import RLock
-
 from metrology.stats.snapshot import Snapshot
 
 
@@ -47,7 +46,7 @@ class ExponentiallyDecayingSample(object):
     RESCALE_THRESHOLD = 60 * 60
 
     def __init__(self, reservoir_size, alpha):
-        self.values = RBTree()
+        self.values = []
         self.next_scale_time = Atomic(0)
         self.alpha = alpha
         self.reservoir_size = reservoir_size
@@ -56,20 +55,20 @@ class ExponentiallyDecayingSample(object):
 
     def clear(self):
         with self.lock:
-            self.values.clear()
+            self.values = []
             self.start_time = time()
             self.next_scale_time.value = self.start_time + self.RESCALE_THRESHOLD
 
     def size(self):
         with self.lock:
-            return self.values.count
+            return len(self.values)
 
     def __len__(self):
         return self.size()
 
     def snapshot(self):
         with self.lock:
-            return Snapshot(list(self.values.values()))
+            return Snapshot(val for _, val in self.values)
 
     def weight(self, timestamp):
         return math.exp(self.alpha * timestamp)
@@ -97,7 +96,8 @@ class ExponentiallyDecayingSample(object):
             except ZeroDivisionError:
                 pass
 
-            self.values[priority] = value
-            while self.values.count > self.reservoir_size:
-                self.values.pop_min()
+            if len(self.values) < self.reservoir_size:
+                heapq.heappush(self.values, (priority, value))
+            else:
+                heapq.heappushpop(self.values, (priority, value))
 

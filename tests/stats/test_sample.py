@@ -78,10 +78,10 @@ class ExponentiallyDecayingSampleTest(TestCase):
         timeStamps = range(1, kSampleSize*2)
         for count, timeStamp in enumerate(timeStamps):
             sample.update(kDefaultValue, timeStamp)
-            self.assertLessEqual(sample.values.count, kSampleSize)
-            self.assertLessEqual(sample.values.count, count+1)
+            self.assertLessEqual(len(sample.values), kSampleSize)
+            self.assertLessEqual(len(sample.values), count+1)
             expected_min_key = timeStamps[max(0,count+1-kSampleSize)]
-            self.assertEqual(sample.values.min_key(), expected_min_key)
+            self.assertEqual(min(sample.values)[0], expected_min_key)
 
 
     @timestamp_to_priority_is_noop
@@ -95,25 +95,29 @@ class ExponentiallyDecayingSampleTest(TestCase):
         expected = zip(timestamps, values)
         for timestamp, value in expected:
             sample.update(value, timestamp)
-        self.assertEqual(list(sample.values.items()), expected)
+        self.assertEqual(sorted(sample.values), expected)
 
         # timestamp less than any existing => no-op
         sample.update(None, 0.5 )
-        self.assertEqual(list(sample.values.items()), expected)
+        self.assertEqual(sorted(sample.values), expected)
 
         # out of order insertions
-        expected = [2.0, 3.0, 4.0]
+        expected = [3.0, 4.0, 5.0]
+        sample.update(None, 5.0)
         sample.update(None, 4.0)
-        sample.update(None, 3.0)
-        self.assertEqual(list(sample.values.keys()), expected)
+        self.assertEqual(sorted(k for k,_  in sample.values), expected)
 
-        # replacement of existing
+        # collision
         marker = "MARKER"
-        replacement_timestamp = sample.values.min_key()
+        replacement_timestamp = 5.0
+        expected = [4.0, 5.0, 5.0]
         sample.update(marker, replacement_timestamp)
-        self.assertEqual(list(sample.values.keys()), expected)
-        self.assertEqual(sample.values[replacement_timestamp], marker)
+        self.assertEqual(sorted(k for k,_  in sample.values), expected)
 
-        print list(sample.values.items())
+        replacement_timestamp = 4.0
+        expected = [4.0, 5.0, 5.0]
+        sample.update(marker, replacement_timestamp)
+        self.assertEqual(sorted(k for k,_  in sample.values), expected)
+
 
 

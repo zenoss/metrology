@@ -48,7 +48,6 @@ class ExponentiallyDecayingSample(object):
 
     def __init__(self, reservoir_size, alpha):
         self.values = RBTree()
-        self.counter = Atomic(0)
         self.next_scale_time = Atomic(0)
         self.alpha = alpha
         self.reservoir_size = reservoir_size
@@ -58,15 +57,12 @@ class ExponentiallyDecayingSample(object):
     def clear(self):
         with self.lock:
             self.values.clear()
-            self.counter.value = 0
-            self.next_scale_time.value = time() + self.RESCALE_THRESHOLD
             self.start_time = time()
+            self.next_scale_time.value = self.start_time + self.RESCALE_THRESHOLD
 
     def size(self):
-        count = self.counter.value
-        if count < self.reservoir_size:
-            return count
-        return self.reservoir_size
+        with self.lock:
+            return self.values.count
 
     def __len__(self):
         return self.size()
@@ -92,20 +88,16 @@ class ExponentiallyDecayingSample(object):
             timestamp = time()
         with self.lock:
             try:
-                priority = self.weight(timestamp - self.start_time) / random.random()
+                priority = self.weight(timestamp - self.start_time)
             except OverflowError:
                 priority = sys.float_info.max
-            new_count = self.counter.update(lambda v: v + 1)
 
-            if math.isnan(priority):
-                return
+            try:
+                priority /= random.random()
+            except ZeroDivisionError:
+                pass
 
-            if new_count <= self.reservoir_size:
-                self.values[priority] = value
-            else:
-                first_priority = self.values.root.key
-                if first_priority < priority:
-                    if priority in self.values:
-                        self.values[priority] = value
-                        if not self.values.remove(first_priority):
-                            first_priority = self.values.root()
+            self.values[priority] = value
+            while self.values.count > self.reservoir_size:
+                self.values.pop_min()
+

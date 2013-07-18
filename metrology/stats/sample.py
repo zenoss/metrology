@@ -94,7 +94,7 @@ class ExponentiallyDecayingSample(object):
         now = time()
         next_time = self.next_scale_time.get_value()
         if now > next_time:
-            self._rescale(now, next_time)
+            self.rescale(now, next_time)
 
     def update(self, value, timestamp=None):
         if timestamp is None:
